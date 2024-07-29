@@ -16,10 +16,23 @@ app.use(cors());
 
 app.use(express.json());
 
-app.get("/", async (req, res) => {
-  const DataSupa = await supabase.from("medium-clone").select();
-
-  res.send(DataSupa);
+app.get("/:topic", async (req, res) => {
+  const topic = req.params.topic;
+  console.log(topic);
+  try {
+    if (topic === "latest") {
+      const DataSupa = await supabase.from("medium-clone").select();
+      return res.send(DataSupa);
+    }
+    const DataSupa = await supabase
+      .from("medium-clone")
+      .select("*")
+      .eq("type", topic);
+    return res.json(DataSupa);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).send("Internal Server Error");
+  }
 });
 
 app.get("/article/:id", async (req, res) => {
@@ -37,7 +50,37 @@ app.get("/article/:id", async (req, res) => {
     .eq("id", id)
     .single();
 
-  res.send(DataSupa);
+  return res.send(DataSupa);
+});
+
+app.post("/publish/new-story", async (req, res) => {
+  const {
+    title,
+    description,
+    article,
+    author_name,
+    img_user,
+    likes,
+    comment,
+    date,
+    img_content,
+    type,
+  } = req.body;
+
+  const DataSupa = await supabase.from("medium-clone").insert({
+    title,
+    description,
+    article,
+    author_name,
+    img_user,
+    likes,
+    comment,
+    date,
+    img_content,
+    type,
+  });
+
+  return res.send(DataSupa);
 });
 
 app.post("/auth/signup", async (req, res) => {
@@ -52,7 +95,13 @@ app.post("/auth/signup", async (req, res) => {
   console.log(email, password);
   const auth = await supabase.auth.signUp({ email, password });
 
-  res.json({ data: auth, created: true });
+  return res.json({ data: auth, created: true });
+});
+
+app.post("/auth/logout", async (req, res) => {
+  const auth = await supabase.auth.signOut();
+
+  return res.json({ data: auth, logout: true });
 });
 
 app.listen(PORT, () => {
