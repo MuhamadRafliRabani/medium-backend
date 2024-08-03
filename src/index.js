@@ -100,8 +100,7 @@ app.post("/publish/new-story", async (req, res) => {
         comment,
         date,
         type,
-        img_content: filename,
-        img_url: url,
+        img_content: url,
       });
 
     if (insertError) {
@@ -160,6 +159,24 @@ app.post("/feature/subcribe", async (req, res) => {
     .insert({ subscriber, subscribed_to, subscribe_at });
 
   res.json({ data, subscribe: true });
+});
+
+app.post("/feature/check-subscription", async (req, res) => {
+  const { subscriber, subscribed_to } = req.body;
+
+  const { data, error } = await supabase
+    .from("subscribes")
+    .select("*")
+    .eq("subscriber", subscriber)
+    .eq("subscribed_to", subscribed_to)
+    .single();
+
+  if (error) {
+    return res.status(500).json({ error: error.message });
+  }
+
+  if (data !== null)
+    res.json({ isSubscribed: true, data, message: "sudah subscribe" });
 });
 
 app.listen(PORT, () => {
