@@ -154,6 +154,8 @@ app.post("/feature/publish/new-story", async (req, res) => {
 app.patch("/feature/like", async (req, res) => {
   const { id } = req.body;
 
+  console.log(req.body);
+
   try {
     const { data: prevData, error: fetchError } = await supabase
       .from("medium-clone")
@@ -161,11 +163,34 @@ app.patch("/feature/like", async (req, res) => {
       .eq("id", id)
       .single();
 
-    if (fetchError) throw fetchError;
+    const { data, error } = await supabase
+      .from("medium-clone")
+      .update({ likes: prevData.likes + 1 })
+      .eq("id", id);
+
+    if (error) throw error;
+
+    res.json({ data, like: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.patch("/feature/unlike", async (req, res) => {
+  const { id } = req.body;
+
+  console.log(req.body);
+
+  try {
+    const { data: prevData, error: fetchError } = await supabase
+      .from("medium-clone")
+      .select("likes")
+      .eq("id", id)
+      .single();
 
     const { data, error } = await supabase
-      .from("subscribes")
-      .update({ likes: prevData.likes + 1 })
+      .from("medium-clone")
+      .update({ likes: prevData.likes - 1 })
       .eq("id", id);
 
     if (error) throw error;
@@ -186,15 +211,14 @@ app.post("/feature/subcribe", async (req, res) => {
   res.json({ data, subscribe: true });
 });
 
-app.post("/feature/check-subscription", async (req, res) => {
-  const { subscriber, subscribed_to } = req.body;
+app.get("/feature/:subscriber/:subscribed_to", async (req, res) => {
+  const { subscriber, subscribed_to } = req.params;
 
   const { data, error } = await supabase
     .from("subscribes")
     .select("*")
     .eq("subscriber", subscriber)
-    .eq("subscribed_to", subscribed_to)
-    .single();
+    .eq("subscribed_to", subscribed_to);
 
   if (error) {
     return res.status(500).json({ error: error.message });
