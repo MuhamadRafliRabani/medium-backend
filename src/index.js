@@ -5,6 +5,7 @@ const dotenv = require("dotenv");
 const { createClient } = require("@supabase/supabase-js");
 const path = require("path");
 const fileUpload = require("express-fileupload");
+const useSetImage = require("./useSetImage");
 
 dotenv.config();
 
@@ -55,43 +56,84 @@ app.get("/article/:id", async (req, res) => {
   return res.json(data);
 });
 
-app.post("/update/profil-user", async (req, res) => {
-  if (req.files === null) {
+app.get("/feature/getuser/:email", async (req, res) => {
+  const email = req.params.email;
+
+  console.log({ email });
+
+  const { data: user, error } = await supabase
+    .from("users")
+    .select("*")
+    .eq("email", email)
+    .single();
+
+  return res.json({ user, userStatus: true });
+});
+
+app.post("/feature/upload/profil-user", async (req, res) => {
+  const { name, pronouns, short_bio, email, profil_img } = req.body;
+  console.log({ name, pronouns, short_bio, email, profil_img });
+
+  const { data: user, error } = await supabase
+    .from("users")
+    .select("*")
+    .eq("email", email)
+    .single();
+
+  if (user !== null)
+    return res.json({ isUser: true, msg: "user sudah ada", user });
+
+  const { data, error: updateError } = await supabase.from("users").insert({
+    name,
+    pronouns,
+    short_bio,
+    profil_img,
+    email,
+  });
+
+  if (updateError) {
+    console.error(updateError);
+    return res.status(500).send("Error updating profile");
+  }
+
+  return res.json({ data, update: true });
+});
+
+app.post("/feature/update/profil-user", async (req, res) => {
+  if (!req.files) {
     return res.status(400).json({ msg: "No images uploaded" });
   }
-  const { name } = req.body;
 
-  const file = req.files.file;
-  const ext = path.extname(file.name);
-  const filename = file.md5 + ext;
-  const url = `${req.protocol}://${req.get("host")}/images/${filename}`;
-  const allowedTypes = [".png", ".jpg", ".jpeg"];
+  const { name, pronouns, short_bio, email } = req.body;
 
-  if (!allowedTypes.includes(ext.toLowerCase())) {
-    return res.status(422).json({ msg: "Invalid image format" });
-  }
-  if (file.size > 5000000) {
-    return res.status(422).json({ msg: "Image size too big" });
+  let image;
+  try {
+    const file = req.files.image;
+    const { url } = await useSetImage(file, req, res);
+    image = url;
+  } catch (error) {
+    return res.status(error.status).json({ msg: error.msg });
   }
 
-  file.mv(`./public/images/${filename}`, async (error) => {
-    if (error) {
-      console.error(error);
-      return res.status(500).json({ msg: "Error saving image file" });
-    }
+  console.log(email);
 
-    const { data, error: updateError } = await supabase.from("users").update({
+  const { data, error: updateError } = await supabase
+    .from("users")
+    .update({
       name,
-      filename,
-      url,
-    });
-    if (updateError) {
-      console.error(updateError);
-      return res.status(500).send("Error updating profile");
-    }
+      pronouns,
+      short_bio,
+      profil_img: image,
+    })
+    .eq("email", email)
+    .single();
 
-    return res.json({ data, update: true });
-  });
+  if (updateError) {
+    console.error(updateError);
+    return res.status(500).send("Error updating profile");
+  }
+
+  return res.json({ data, update: true });
 });
 
 app.post("/feature/publish/new-story", async (req, res) => {
@@ -109,46 +151,36 @@ app.post("/feature/publish/new-story", async (req, res) => {
 
   if (!req.files) return res.status(400).send("No files were uploaded.");
 
-  const file = req.files.img_content;
-  const ext = path.extname(file.name);
-  const filename = file.md5 + ext;
-  const url = `${req.protocol}://${req.get("host")}/images/${filename}`;
-  const allowedTypes = [".png", ".jpg", ".jpeg"];
+  let image;
+  try {
+    const file = req.files.image;
+    const { url } = await useSetImage(file, req, res);
+    image = url;
+  } catch (error) {
+    return res.status(error.status).json({ msg: error.msg });
+  }
 
-  if (!allowedTypes.includes(ext.toLowerCase()))
-    return res.status(422).json({ msg: "Invalid image format" });
+  const { data, error: insertError } = await supabase
+    .from("medium-clone")
+    .insert({
+      title,
+      description,
+      article,
+      author_name,
+      img_user,
+      likes,
+      comment,
+      date,
+      type,
+      img_content: image,
+    });
 
-  if (file.size > 5000000)
-    return res.status(422).send({ msg: "Image size too big" });
+  if (insertError) {
+    console.error(insertError);
+    return res.status(500).send("Error inserting story");
+  }
 
-  file.mv(`./public/images/${filename}`, async (error) => {
-    if (error) {
-      console.error(error);
-      return res.status(500).send("Error saving image file");
-    }
-
-    const { data, error: insertError } = await supabase
-      .from("medium-clone")
-      .insert({
-        title,
-        description,
-        article,
-        author_name,
-        img_user,
-        likes,
-        comment,
-        date,
-        type,
-        img_content: url,
-      });
-
-    if (insertError) {
-      console.error(insertError);
-      return res.status(500).send("Error inserting story");
-    }
-
-    res.status(200).json({ data, create: true });
-  });
+  res.status(200).json({ data, create: true });
 });
 
 app.patch("/feature/like", async (req, res) => {
