@@ -22,7 +22,6 @@ app.use(express.static("public"));
 
 app.get("/:topic", async (req, res) => {
   const topic = req.params.topic;
-  console.log(topic);
   try {
     if (topic === "latest") {
       const { data, error } = await supabase.from("medium-clone").select("*");
@@ -35,7 +34,6 @@ app.get("/:topic", async (req, res) => {
     if (error) throw error;
     return res.json(data);
   } catch (error) {
-    console.error(error);
     return res.status(500).send("Internal Server Error");
   }
 });
@@ -49,7 +47,6 @@ app.get("/article/:id", async (req, res) => {
     .eq("id", id)
     .single();
   if (error) {
-    console.error(error);
     return res.status(500).send("Internal Server Error");
   }
 
@@ -58,8 +55,6 @@ app.get("/article/:id", async (req, res) => {
 
 app.get("/feature/getuser/:email", async (req, res) => {
   const email = req.params.email;
-
-  console.log({ email });
 
   const { data: user, error } = await supabase
     .from("users")
@@ -71,8 +66,10 @@ app.get("/feature/getuser/:email", async (req, res) => {
 });
 
 app.post("/feature/upload/profil-user", async (req, res) => {
-  const { name, pronouns, short_bio, email, profil_img } = req.body;
-  console.log({ name, pronouns, short_bio, email, profil_img });
+  const { name, pronouns, short_bio, email } = req.body;
+  if (!req.files) {
+    return res.status(400).json({ msg: "No images uploaded" });
+  }
 
   const { data: user, error } = await supabase
     .from("users")
@@ -83,16 +80,24 @@ app.post("/feature/upload/profil-user", async (req, res) => {
   if (user !== null)
     return res.json({ isUser: true, msg: "user sudah ada", user });
 
+  let image;
+  try {
+    const file = req.files.image;
+    const { url } = await useSetImage(file, req, res);
+    image = url;
+  } catch (error) {
+    return res.status(error.status).json({ msg: error.msg });
+  }
+
   const { data, error: updateError } = await supabase.from("users").insert({
     name,
     pronouns,
     short_bio,
-    profil_img,
+    profil_img: image,
     email,
   });
 
   if (updateError) {
-    console.error(updateError);
     return res.status(500).send("Error updating profile");
   }
 
@@ -105,6 +110,7 @@ app.post("/feature/update/profil-user", async (req, res) => {
   }
 
   const { name, pronouns, short_bio, email } = req.body;
+  console.log({ name, pronouns, short_bio, email });
 
   let image;
   try {
@@ -114,8 +120,6 @@ app.post("/feature/update/profil-user", async (req, res) => {
   } catch (error) {
     return res.status(error.status).json({ msg: error.msg });
   }
-
-  console.log(email);
 
   const { data, error: updateError } = await supabase
     .from("users")
@@ -129,8 +133,7 @@ app.post("/feature/update/profil-user", async (req, res) => {
     .single();
 
   if (updateError) {
-    console.error(updateError);
-    return res.status(500).send("Error updating profile");
+    return res.json({ msg:"Error updating profile"});
   }
 
   return res.json({ data, update: true });
@@ -176,7 +179,6 @@ app.post("/feature/publish/new-story", async (req, res) => {
     });
 
   if (insertError) {
-    console.error(insertError);
     return res.status(500).send("Error inserting story");
   }
 
@@ -185,8 +187,6 @@ app.post("/feature/publish/new-story", async (req, res) => {
 
 app.patch("/feature/like", async (req, res) => {
   const { id } = req.body;
-
-  console.log(req.body);
 
   try {
     const { data: prevData, error: fetchError } = await supabase
@@ -210,8 +210,6 @@ app.patch("/feature/like", async (req, res) => {
 
 app.patch("/feature/unlike", async (req, res) => {
   const { id } = req.body;
-
-  console.log(req.body);
 
   try {
     const { data: prevData, error: fetchError } = await supabase
@@ -243,8 +241,9 @@ app.post("/feature/subcribe", async (req, res) => {
   res.json({ data, subscribe: true });
 });
 
-app.get("/feature/:subscriber/:subscribed_to", async (req, res) => {
-  const { subscriber, subscribed_to } = req.params;
+app.post("/feature/checkisSubscribe", async (req, res) => {
+  const { subscriber, subscribed_to } = req.body;
+  console.log({ subscriber, subscribed_to });
 
   const { data, error } = await supabase
     .from("subscribes")
@@ -260,6 +259,18 @@ app.get("/feature/:subscriber/:subscribed_to", async (req, res) => {
     res.json({ isSubscribed: true, data, message: "sudah subscribe" });
 });
 
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+app.post("/feature/comment/upload", async (req, res) => {
+  const { idArticle, user, comment } = req.body;
+
+  const { data, error } = await supabase.from("comment").insert({
+    idArticle,
+    user,
+    comment,
+  });
+
+  if (error) return res.json({ error, msg: "something error" });
+
+  res.json({ data, msg: "comment uploded" });
 });
+
+app.listen(PORT, () => {});
