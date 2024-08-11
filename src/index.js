@@ -27,10 +27,7 @@ app.get("/:topic", async (req, res) => {
       const { data, error } = await supabase.from("medium-clone").select("*");
       return res.json(data);
     }
-    const { data, error } = await supabase
-      .from("medium-clone")
-      .select("*")
-      .eq("type", topic);
+    const { data, error } = await supabase.from("medium-clone").select("*").eq("type", topic);
     if (error) throw error;
     return res.json(data);
   } catch (error) {
@@ -41,11 +38,7 @@ app.get("/:topic", async (req, res) => {
 app.get("/article/:id", async (req, res) => {
   const id = parseInt(req.params.id);
 
-  const { data, error } = await supabase
-    .from("medium-clone")
-    .select("*")
-    .eq("id", id)
-    .single();
+  const { data, error } = await supabase.from("medium-clone").select("*").eq("id", id).single();
   if (error) {
     return res.status(500).send("Internal Server Error");
   }
@@ -56,11 +49,7 @@ app.get("/article/:id", async (req, res) => {
 app.get("/feature/getuser/:email", async (req, res) => {
   const email = req.params.email;
 
-  const { data: user, error } = await supabase
-    .from("users")
-    .select("*")
-    .eq("email", email)
-    .single();
+  const { data: user, error } = await supabase.from("users").select("*").eq("email", email).single();
 
   return res.json({ user, userStatus: true });
 });
@@ -70,15 +59,11 @@ app.post("/feature/upload/profil-user", async (req, res) => {
 
   console.log(email);
 
-  const { data: user, error } = await supabase
-    .from("users")
-    .select("*")
-    .eq("email", email);
+  const { data: user, error } = await supabase.from("users").select("*").eq("email", email);
 
   console.log(user);
 
-  if (user.length !== 0)
-    return res.json({ isUser: true, msg: "user sudah ada", user });
+  if (user.length !== 0) return res.json({ isUser: true, msg: "user sudah ada", user });
 
   const { data } = await supabase.from("users").insert({
     name,
@@ -127,17 +112,7 @@ app.post("/feature/update/profil-user", async (req, res) => {
 });
 
 app.post("/feature/publish/new-story", async (req, res) => {
-  const {
-    title,
-    description,
-    article,
-    author_name,
-    img_user,
-    likes,
-    comment,
-    date,
-    type,
-  } = req.body;
+  const { title, description, article, author_name, img_user, likes, comment, date, type } = req.body;
 
   if (!req.files) return res.status(400).send("No files were uploaded.");
 
@@ -150,20 +125,18 @@ app.post("/feature/publish/new-story", async (req, res) => {
     return res.status(error.status).json({ msg: error.msg });
   }
 
-  const { data, error: insertError } = await supabase
-    .from("medium-clone")
-    .insert({
-      title,
-      description,
-      article,
-      author_name,
-      img_user,
-      likes,
-      comment,
-      date,
-      type,
-      img_content: image,
-    });
+  const { data, error: insertError } = await supabase.from("medium-clone").insert({
+    title,
+    description,
+    article,
+    author_name,
+    img_user,
+    likes,
+    comment,
+    date,
+    type,
+    img_content: image,
+  });
 
   if (insertError) {
     return res.status(500).send("Error inserting story");
@@ -176,11 +149,7 @@ app.patch("/feature/like", async (req, res) => {
   const { id } = req.body;
 
   try {
-    const { data: prevData, error: fetchError } = await supabase
-      .from("medium-clone")
-      .select("likes")
-      .eq("id", id)
-      .single();
+    const { data: prevData, error: fetchError } = await supabase.from("medium-clone").select("likes").eq("id", id).single();
 
     const { data, error } = await supabase
       .from("medium-clone")
@@ -199,11 +168,7 @@ app.patch("/feature/unlike", async (req, res) => {
   const { id } = req.body;
 
   try {
-    const { data: prevData, error: fetchError } = await supabase
-      .from("medium-clone")
-      .select("likes")
-      .eq("id", id)
-      .single();
+    const { data: prevData, error: fetchError } = await supabase.from("medium-clone").select("likes").eq("id", id).single();
 
     const { data, error } = await supabase
       .from("medium-clone")
@@ -221,9 +186,7 @@ app.patch("/feature/unlike", async (req, res) => {
 app.post("/feature/subcribe", async (req, res) => {
   const { subscriber, subscribed_to, subscribe_at } = req.body;
 
-  const data = await supabase
-    .from("subscribes")
-    .insert({ subscriber, subscribed_to, subscribe_at });
+  const data = await supabase.from("subscribes").insert({ subscriber, subscribed_to, subscribe_at });
 
   res.json({ data, subscribe: true });
 });
@@ -232,18 +195,13 @@ app.post("/feature/checkisSubscribe", async (req, res) => {
   const { subscriber, subscribed_to } = req.body;
   console.log({ subscriber, subscribed_to });
 
-  const { data, error } = await supabase
-    .from("subscribes")
-    .select("*")
-    .eq("subscriber", subscriber)
-    .eq("subscribed_to", subscribed_to);
+  const { data, error } = await supabase.from("subscribes").select("*").eq("subscriber", subscriber).eq("subscribed_to", subscribed_to);
 
   if (error) {
     return res.status(500).json({ error: error.message });
   }
 
-  if (data !== null)
-    res.json({ isSubscribed: true, data, message: "sudah subscribe" });
+  if (data !== null) res.json({ isSubscribed: true, data, message: "sudah subscribe" });
 });
 
 app.post("/feature/comment/upload", async (req, res) => {
