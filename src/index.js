@@ -66,40 +66,27 @@ app.get("/feature/getuser/:email", async (req, res) => {
 });
 
 app.post("/feature/upload/profil-user", async (req, res) => {
-  const { name, pronouns, short_bio, email } = req.body;
-  if (!req.files) {
-    return res.status(400).json({ msg: "No images uploaded" });
-  }
+  const { name, pronouns, short_bio, email, profil_img } = req.body;
+
+  console.log(email);
 
   const { data: user, error } = await supabase
     .from("users")
     .select("*")
-    .eq("email", email)
-    .single();
+    .eq("email", email);
 
-  if (user !== null)
+  console.log(user);
+
+  if (user.length !== 0)
     return res.json({ isUser: true, msg: "user sudah ada", user });
 
-  let image;
-  try {
-    const file = req.files.image;
-    const { url } = await useSetImage(file, req, res);
-    image = url;
-  } catch (error) {
-    return res.status(error.status).json({ msg: error.msg });
-  }
-
-  const { data, error: updateError } = await supabase.from("users").insert({
+  const { data } = await supabase.from("users").insert({
     name,
     pronouns,
     short_bio,
-    profil_img: image,
+    profil_img,
     email,
   });
-
-  if (updateError) {
-    return res.status(500).send("Error updating profile");
-  }
 
   return res.json({ data, update: true });
 });
@@ -133,7 +120,7 @@ app.post("/feature/update/profil-user", async (req, res) => {
     .single();
 
   if (updateError) {
-    return res.json({ msg:"Error updating profile"});
+    return res.json({ msg: "Error updating profile" });
   }
 
   return res.json({ data, update: true });
