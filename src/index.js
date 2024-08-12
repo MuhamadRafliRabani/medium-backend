@@ -2,23 +2,18 @@ const express = require("express");
 const app = express();
 const cors = require("cors");
 const dotenv = require("dotenv");
-const { createClient } = require("@supabase/supabase-js");
-const path = require("path");
-const fileUpload = require("express-fileupload");
-const useSetImage = require("./useSetImage");
+const { supabase } = require("./db");
+const multer = require("multer");
 
 dotenv.config();
 
 const PORT = process.env.PORT || 3000;
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_KEY = process.env.SUPABASE_KEY;
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 app.use(cors());
 app.use(express.json());
-app.use(fileUpload());
-app.use(express.static("public"));
+
+const storage = multer.memoryStorage();
+const upload = multer({ storage: storage });
 
 app.get("/:topic", async (req, res) => {
   const topic = req.params.topic;
@@ -39,6 +34,15 @@ app.get("/article/:id", async (req, res) => {
   const id = parseInt(req.params.id);
 
   const { data, error } = await supabase.from("medium-clone").select("*").eq("id", id).single();
+  if (error) {
+    return res.status(500).send("Internal Server Error");
+  }
+
+  return res.json(data);
+});
+
+app.get("/getImage", async (req, res) => {
+  const { data, error } = await supabase.storage.from("image-article-medium").select("*");
   if (error) {
     return res.status(500).send("Internal Server Error");
   }
@@ -76,54 +80,113 @@ app.post("/feature/upload/profil-user", async (req, res) => {
   return res.json({ data, update: true });
 });
 
-app.post("/feature/update/profil-user", async (req, res) => {
-  if (!req.files) {
-    return res.status(400).json({ msg: "No images uploaded" });
-  }
-
+app.post("/feature/update/profil-user", upload.single("image"), async (req, res) => {
   const { name, pronouns, short_bio, email } = req.body;
   console.log({ name, pronouns, short_bio, email });
 
   let image;
+
   try {
-    const file = req.files.image;
-    const { url } = await useSetImage(file, req, res);
-    image = url;
+    // Pastikan file telah diunggah
+    if (req.file) {
+      const { originalname, buffer } = req.file;
+
+      // Upload gambar ke Supabase Storage
+      const { data, error } = await supabase.storage
+        .from("image-article-medium") // Ganti dengan nama bucket Anda
+        .upload(`public/${originalname}`, buffer, {
+          cacheControl: "3600",
+          upsert: false,
+          contentType: req.file.mimetype,
+        });
+
+      if (error) {
+        console.error("Upload error:", error);
+        return res.status(400).json({ msg: "Error saving image file" });
+      }
+
+      // Jika berhasil, dapatkan URL gambar yang diupload
+      image = `${process.env.SUPABASE_URL}/storage/v1/object/public/image-article-medium/public/${originalname}`;
+      console.log("Image URL:", image);
+    }
+
+    // Update profil pengguna di Supabase
+    const { data: userData, error: updateError } = await supabase
+      .from("users")
+      .update({
+        name,
+        pronouns,
+        short_bio,
+        profil_img: image,
+      })
+      .eq("email", email)
+      .single();
+
+    if (updateError) {
+      console.error("Update error:", updateError);
+      return res.status(400).json({ msg: "Error updating profile" });
+    }
+
+    return res.json({ data: userData, update: true });
   } catch (error) {
-    return res.status(error.status).json({ msg: error.msg });
+    console.error("Unexpected error:", error);
+    return res.status(500).json({ msg: "Internal Server Error" });
   }
-
-  const { data, error: updateError } = await supabase
-    .from("users")
-    .update({
-      name,
-      pronouns,
-      short_bio,
-      profil_img: image,
-    })
-    .eq("email", email)
-    .single();
-
-  if (updateError) {
-    return res.json({ msg: "Error updating profile" });
-  }
-
-  return res.json({ data, update: true });
 });
 
-app.post("/feature/publish/new-story", async (req, res) => {
+app.post("/feature/publish/new-story", upload.single("image"), async (req, res) => {
   const { title, description, article, author_name, img_user, likes, comment, date, type } = req.body;
-
-  if (!req.files) return res.status(400).send("No files were uploaded.");
 
   let image;
   try {
-    const file = req.files.image;
-    const { url } = await useSetImage(file, req, res);
+    const { originalname, buffer } = req.file;
+
+    const { data, error } = await supabase.storage
+      .from("image-article-medium") // Ganti dengan nama bucket Anda
+      .upload(`public/${originalname}`, buffer, {
+        cacheControl: "3600",
+        upsert: false,
+        contentType: req.file.mimetype,
+      });
+
+    if (error) {
+      throw error;
+    }
+
+    // Jika berhasil, kirim URL gambar yang diupload
+    const url = `${process.env.SUPABASE_URL}/storage/v1/object/public/image-article-medium/public/${originalname}`;
+    console.log(url);
+
     image = url;
   } catch (error) {
     return res.status(error.status).json({ msg: error.msg });
   }
+
+  // const handleImg = await (req) => {
+  //   try {
+
+  //   const { originalname, buffer } = req.file;
+
+  //     const { data, error } = await supabase.storage
+  //       .from("image-article-medium") // Ganti dengan nama bucket Anda
+  //       .upload(`public/${originalname}`, buffer, {
+  //         cacheControl: "3600",
+  //         upsert: false,
+  //         contentType: req.file.mimetype,
+  //       });
+
+  //     if (error) {
+  //       throw error;
+  //     }
+
+  //     // Jika berhasil, kirim URL gambar yang diupload
+  //     const url = `${process.env.SUPABASE_URL}/storage/v1/object/public/image-article-medium/public/${originalname}`;
+  //     console.log(url);
+  //     return {url}
+  //   } catch (error) {
+  //     return {error}
+  //   }
+  // }
 
   const { data, error: insertError } = await supabase.from("medium-clone").insert({
     title,
@@ -218,6 +281,6 @@ app.post("/feature/comment/upload", async (req, res) => {
   res.json({ data, msg: "comment uploded" });
 });
 
-app.listen(PORT, () => {
-  `Listening on port ${PORT}`
+app.listen(PORT, (req, res) => {
+  console.log(`Listening on port ${PORT}`);
 });
