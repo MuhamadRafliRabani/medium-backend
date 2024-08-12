@@ -218,4 +218,6 @@ app.post("/feature/comment/upload", async (req, res) => {
   res.json({ data, msg: "comment uploded" });
 });
 
-app.listen(PORT, () => {});
+app.listen(PORT, () => {
+  `Listening on port ${PORT}`
+});
