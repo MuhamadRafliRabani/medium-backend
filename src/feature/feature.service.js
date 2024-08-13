@@ -104,11 +104,13 @@ const handleCheckSubscribe = async (subscriber, subscribed_to) => {
   if (data.length !== 0) res.json({ subscriber: true, data, message: "alredy subscribe", status: 200 });
 };
 
-const commentUpload = async (idArticle, user, comment) => {
+const commentUpload = async (idArticle, user, comment, email, time) => {
   const { data, error } = await supabase.from("comment").insert({
     idArticle,
     user,
     comment,
+    email,
+    time,
   });
 
   if (error) return { error, massage: "upload comment failed", status: 500 };

@@ -75,15 +75,16 @@ router.post("/checkIsSubscribe", async (req, res) => {
 });
 
 router.post("/comment/upload", async (req, res) => {
-  const { idArticle, user, comment } = req.body;
+  const { idArticle, user, comment, email, time } = req.body;
 
-  const data = await commentUpload(idArticle, user, comment);
+  const data = await commentUpload(idArticle, user, comment, email, time);
 
   res.send(data);
 });
 
 router.get("/comment/:idArticle", async (req, res) => {
   const { idArticle } = req.params;
+  console.log(idArticle);
 
   const data = await getComment(idArticle);
 
