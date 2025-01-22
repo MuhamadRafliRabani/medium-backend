@@ -3,8 +3,11 @@ const app = express();
 const cors = require("cors");
 const dotenv = require("dotenv");
 const {
-  getArticleByTopic,
-  getArticleById,
+  useExistingArticle,
+  useGetArticleByTopic,
+  useSignUp,
+  useSignIn,
+  useOauth,
 } = require("./feature/feature.repositori");
 
 dotenv.config();
@@ -17,7 +20,7 @@ app.use(express.json());
 app.get("/article/:topic", async (req, res) => {
   const topic = req.params.topic;
   try {
-    return await getArticleByTopic(topic, res);
+    return await useGetArticleByTopic(topic, res);
   } catch (error) {
     return res.status(500).json({
       errorMessage: error.message,
@@ -29,8 +32,38 @@ app.get("/article/:topic", async (req, res) => {
 app.get("/article/:article_id", async (req, res) => {
   try {
     const { article_id } = req.params;
+    console.log("🚀 ~ app.get ~ article_id:", article_id);
 
-    return await getArticleById(article_id, res);
+    return await useExistingArticle(parseInt(article_id), res);
+  } catch (error) {
+    return res.status(500).json({
+      errorMessage: error.message,
+      error,
+    });
+  }
+});
+
+app.post("/auth/email/:action", async (req, res) => {
+  try {
+    const { action } = req.params;
+    const { email, password } = req.body;
+
+    action === "signUp"
+      ? await useSignUp(email, password, res)
+      : useSignIn(email, password, res);
+  } catch (error) {
+    return res.status(500).json({
+      errorMessage: error.message,
+      error,
+    });
+  }
+});
+
+app.get("/Oauth/:provider", async (req, res) => {
+  try {
+    const { provider } = req.params;
+
+    return await useOauth(provider, res);
   } catch (error) {
     return res.status(500).json({
       errorMessage: error.message,

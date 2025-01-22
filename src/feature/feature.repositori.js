@@ -1,8 +1,8 @@
 const { supabase } = require("../db");
 
-const getArticleByTopic = async (topic, res) => {
+const useGetArticleByTopic = async (topic, res) => {
   if (topic === "latest") {
-    const { data, error } = await supabase.from("medium-clone").select("*");
+    const { data, error } = await supabase.from("article").select("*");
 
     return res.status(200).json({
       message: "Article with topic " + topic + " founded",
@@ -11,9 +11,9 @@ const getArticleByTopic = async (topic, res) => {
   }
 
   const { data, error } = await supabase
-    .from("medium-clone")
+    .from("article")
     .select("*")
-    .eq("type", topic);
+    .eq("category", topic);
 
   if (error)
     res.status(error.code).json({
@@ -27,13 +27,11 @@ const getArticleByTopic = async (topic, res) => {
   });
 };
 
-const getArticleById = async (article_id, res) => {
-  console.log("🚀 ~ getArticleById ~ article_id:", article_id);
-
+const useExistingArticle = async (article_id, res) => {
   const { data, error } = await supabase
-    .from("articles")
+    .from("article")
     .select("*")
-    .eq("id", article_id)
+    .eq("article_id", article_id)
     .single();
 
   if (error) {
@@ -45,7 +43,8 @@ const getArticleById = async (article_id, res) => {
 
   return res.status(200).json({
     message: "Article with " + article_id + " founded",
-    data: data,
+    data,
+    article: true,
   });
 };
 
@@ -236,9 +235,123 @@ const useExistingComment = async (article_id, res) => {
   });
 };
 
+const useSignUp = async (email, password, res) => {
+  const { data: user, error } = await supabase.auth.signUp({
+    email,
+    password,
+  });
+
+  if (error) {
+    return res.status(500).json({
+      message: error.message,
+      error,
+    });
+  }
+
+  if (!user || user?.length == 0) {
+    return res.status(200).json({
+      message: "user not exist",
+      user: null,
+    });
+  }
+
+  return res.status(200).json({
+    message: "user exist",
+    user,
+  });
+};
+
+const useSignIn = async (email, password, res) => {
+  const { data: user, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+
+  if (error) {
+    if (error.message === "Invalid login credentials") {
+      return res.status(400).json({
+        message: "akun tidak ditemukan " + error.message,
+        error,
+      });
+    } else if (error.message === "Email not confirmed") {
+      return res.status(400).json({
+        message: error.message,
+        error,
+      });
+    }
+
+    return res.status(500).json({
+      message: error.message,
+      error,
+    });
+  }
+
+  if (!user || user?.length == 0) {
+    return res.status(200).json({
+      message: "user not exist",
+      user: null,
+    });
+  }
+
+  return res.status(200).json({
+    message: "user exist",
+    user,
+  });
+};
+
+const useOauth = async (provider, res) => {
+  if (provider == "github") {
+    const { data: user, error } = await supabase.auth.signInWithOAuth({
+      provider: "github",
+    });
+
+    if (error) {
+      return res.status(500).json({
+        message: error.message,
+        error,
+      });
+    }
+
+    return res.status(200).json({
+      message: "user exist",
+      user,
+    });
+  }
+
+  // if (provider == "google") {
+  //   const { data: user, error } = await supabase.auth.signInWithOAuth({
+  //     provider: "google",
+  //   });
+
+  //   if (error) {
+  //     return res.status(500).json({
+  //       message: error.message,
+  //       error,
+  //     });
+  //   }
+
+  //   return res.status(200).json({
+  //     message: "user exist",
+  //     user,
+  //   });
+  // }
+
+  // if (!user || user?.length == 0) {
+  //   return res.status(200).json({
+  //     message: "user not exist",
+  //     user: null,
+  //   });
+  // }
+
+  // return res.status(200).json({
+  //   message: "user exist",
+  //   user,
+  // });
+};
+
 module.exports = {
-  getArticleByTopic,
-  getArticleById,
+  useGetArticleByTopic,
+  useExistingArticle,
   publishArticle,
   useLike,
   useUnLike,
@@ -248,4 +361,7 @@ module.exports = {
   useExistingLike,
   useExistingSubscribe,
   useExistingComment,
+  useSignUp,
+  useSignIn,
+  useOauth,
 };
