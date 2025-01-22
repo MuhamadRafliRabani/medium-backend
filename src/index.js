@@ -2,7 +2,10 @@ const express = require("express");
 const app = express();
 const cors = require("cors");
 const dotenv = require("dotenv");
-const { supabase } = require("./db");
+const {
+  getArticleByTopic,
+  getArticleById,
+} = require("./feature/feature.repositori");
 
 dotenv.config();
 
@@ -11,30 +14,29 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-app.get("/:topic", async (req, res) => {
+app.get("/article/:topic", async (req, res) => {
   const topic = req.params.topic;
   try {
-    if (topic === "latest") {
-      const { data, error } = await supabase.from("medium-clone").select("*");
-      return res.json(data);
-    }
-    const { data, error } = await supabase.from("medium-clone").select("*").eq("type", topic);
-    if (error) throw error;
-    return res.json(data);
+    return await getArticleByTopic(topic, res);
   } catch (error) {
-    return res.status(500).send("Internal Server Error");
+    return res.status(500).json({
+      errorMessage: error.message,
+      error,
+    });
   }
 });
 
-app.get("/article/:id", async (req, res) => {
-  const id = parseInt(req.params.id);
+app.get("/article/:article_id", async (req, res) => {
+  try {
+    const { article_id } = req.params;
 
-  const { data, error } = await supabase.from("medium-clone").select("*").eq("id", id).single();
-  if (error) {
-    return res.status(500).send("Internal Server Error");
+    return await getArticleById(article_id, res);
+  } catch (error) {
+    return res.status(500).json({
+      errorMessage: error.message,
+      error,
+    });
   }
-
-  return res.json(data);
 });
 
 const featureContorler = require("./feature/feature.controler");

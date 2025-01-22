@@ -1,7 +1,18 @@
 const { supabase } = require("../db");
+const {
+  useExistingLike,
+  useLike,
+  useUnLike,
+  useExistingSubscribe,
+  useSubscribe,
+  useUnSubscribe,
+} = require("./feature.repositori");
 
 const getUserByEmail = async (email) => {
-  const { data: user, error } = await supabase.from("users").select("*").eq("email", email);
+  const { data: user, error } = await supabase
+    .from("users")
+    .select("*")
+    .eq("email", email);
 
   if (error) return { error, status: 500, massage: "something error" };
   if (user?.length !== 0) return { user, userExist: true };
@@ -9,132 +20,65 @@ const getUserByEmail = async (email) => {
   return { user, status: 200, massage: "get user", userExist: false };
 };
 
-const profilUserUpload = async (name, pronouns, short_bio, email, profil_img) => {
-  const { userExist, user, status, massage } = await getUserByEmail(email);
+const handleLike = async (user_id, article_id, res) => {
+  const existingLike = await useExistingLike(user_id, article_id);
 
-  if (userExist) return { userExist, msg: "user exist", user, status, massage };
-
-  const { data } = await supabase.from("users").insert({
-    name,
-    pronouns,
-    short_bio,
-    profil_img,
-    email,
-  });
-
-  return { data, status: 200, massage: "upload user success", upload: true };
-};
-
-const profilUserUpdate = async (name, pronouns, short_bio, image, email) => {
-  const { error } = await supabase
-    .from("users")
-    .update({
-      name,
-      pronouns,
-      short_bio,
-      profil_img: image,
-    })
-    .eq("email", email)
-    .single();
-
-  if (error) return { message: "Error updating profile", status: 400 };
-
-  return { status: 200, massage: "updated profil success", update: true };
-};
-
-const storypublish = async (title, description, article, author_name, img_user, likes, date, type, image) => {
-  const { data, error } = await supabase.from("medium-clone").insert({
-    title,
-    description,
-    article,
-    author_name,
-    img_user,
-    likes,
-    date,
-    type,
-    img_content: image,
-  });
-
-  if (error) return { massage: "Error inserting story", publish: false, error };
-
-  return { data, status: 200, publish: true };
-};
-
-const handleLike = async (id) => {
-  const { data: prevData } = await supabase.from("medium-clone").select("likes").eq("id", id).single();
-
-  const { data, error } = await supabase
-    .from("medium-clone")
-    .update({ likes: prevData.likes + 1 })
-    .eq("id", id);
-
-  if (error) return { error, like: false, message: "like failed", status: 500 };
-
-  return { data, like: true, message: "like success", status: 200 };
-};
-
-const handleDisLike = async (id) => {
-  const { data: prevData } = await supabase.from("medium-clone").select("likes").eq("id", id).single();
-
-  const { data, error } = await supabase
-    .from("medium-clone")
-    .update({ likes: prevData.likes - 1 })
-    .eq("id", id);
-
-  if (error) return { error, dislike: false, message: "dislike failed", status: 500 };
-
-  return { data, dislike: true, message: "dislike success", status: 200 };
-};
-
-const handleSubscribe = async (subscriber, subscribed_to, subscribe_at) => {
-  const { data, error } = await supabase.from("subscribes").insert({ subscriber, subscribed_to, subscribe_at });
-
-  if (error) return { subscribe: false, status: 500, message: "subsribe failed" };
-
-  return { data, subscribe: true, status: 200, message: "subsribe success" };
-};
-
-const handleCheckSubscribe = async (subscriber, subscribed_to) => {
-  const { data, error } = await supabase.from("subscribes").select("*").eq("subscriber", subscriber).eq("subscribed_to", subscribed_to);
-
-  if (error) {
-    return { error: error.message, status: 500 };
+  if (existingLike) {
+    return res.status(200).json({
+      message: "user already like this article",
+      data: existingLike,
+    });
   }
 
-  if (data.length !== 0) res.json({ subscriber: true, data, message: "alredy subscribe", status: 200 });
+  const Like = await useLike(user_id, article_id, res);
+  return await Like;
 };
 
-const commentUpload = async (idArticle, user, comment, email, time) => {
-  const { data, error } = await supabase.from("comment").insert({
-    idArticle,
-    user,
-    comment,
-    email,
-    time,
+const handleUnLike = async (user_id, article_id, res) => {
+  const existingLike = await useExistingLike(user_id, article_id);
+
+  if (!existingLike) {
+    return res.status(200).json({
+      message: "user not yet like this article",
+    });
+  }
+
+  return await useUnLike(user_id, article_id, res);
+};
+
+const handleSubscribe = async (user_id, subscribe_to, res) => {
+  const existingSubscribe = await useExistingSubscribe(user_id, subscribe_to);
+
+  if (existingSubscribe) {
+    return res.status(200).json({
+      message: "user already subcribe this user",
+      data: existingSubscribe,
+    });
+  }
+
+  const subcribe = await useSubscribe(user_id, subscribe_to, res);
+  return await subcribe;
+};
+
+const handleUnSubscribe = async (user_id, subscribe_to, res) => {
+  const existingSubscribe = await useExistingSubscribe(user_id, subscribe_to);
+
+  if (existingSubscribe) {
+    const subcribe = await useUnSubscribe(user_id, subscribe_to, res);
+
+    return await subcribe;
+  }
+
+  return res.status(200).json({
+    message: "user not yet subcribe this user",
+    data: existingSubscribe,
   });
-
-  if (error) return { error, massage: "upload comment failed", status: 500 };
-
-  return { data, massage: "comment uploded", status: 200 };
-};
-
-const getComment = async (idArticle) => {
-  const { data, error } = await supabase.from("comment").select("*").eq("idArticle", idArticle);
-
-  if (error) return { error, massage: "get comment failed", status: 500 };
-
-  return { data, massage: "succes get comment", status: 200 };
 };
 
 module.exports = {
-  handleCheckSubscribe,
-  profilUserUpload,
-  profilUserUpdate,
   handleSubscribe,
   getUserByEmail,
-  handleDisLike,
-  commentUpload,
-  storypublish,
+  handleUnLike,
   handleLike,
-  getComment,
+  handleUnSubscribe,
 };

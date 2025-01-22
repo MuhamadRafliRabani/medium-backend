@@ -1,8 +1,19 @@
 const express = require("express");
-const { getUserByEmail, profilUserUpload, profilUserUpdate, storypublish, handleDisLike, handleLike, handleSubscribe, handleCheckSubscribe, commentUpload, getComment } = require("./feature.service");
+const {
+  getUserByEmail,
+  handleLike,
+  handleSubscribe,
+  handleUnLike,
+  handleUnSubscribe,
+} = require("./feature.service");
 const router = express.Router();
 const upload = require("../multer");
 const handleImg = require("../handleImage");
+const {
+  useUploadComment,
+  publishArticle,
+  useExistingComment,
+} = require("./feature.repositori");
 
 router.get("/getuser/:email", async (req, res) => {
   const email = req.params.email;
@@ -12,83 +23,125 @@ router.get("/getuser/:email", async (req, res) => {
   return res.json(data);
 });
 
-router.post("/profil-user/upload", async (req, res) => {
-  const { name, pronouns, short_bio, email, profil_img } = req.body;
+router.post("/upload/article", upload.single("image"), async (req, res) => {
+  try {
+    const { title, description, article, user_name, user_image, category } =
+      req.body;
 
-  const data = await profilUserUpload(name, pronouns, short_bio, email, profil_img);
+    const image = await handleImg(req);
 
-  return res.send(data);
-});
+    if (!image) {
+      return res.status(400).json({
+        message: "Image is required",
+      });
+    }
 
-router.post("/profil-user/update", upload.single("image"), async (req, res) => {
-  const { name, pronouns, short_bio, email } = req.body;
+    const body = {
+      title,
+      description,
+      article,
+      user_name,
+      user_image,
+      content_image: image,
+      category,
+    };
 
-  const image = await handleImg(req);
-  if (image) {
-    const data = await profilUserUpdate(name, pronouns, short_bio, image, email);
-    return res.send(data);
+    return await publishArticle(body, res);
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message,
+      error,
+    });
   }
 });
 
-router.post("/story/publish", upload.single("image"), async (req, res) => {
-  const { title, description, article, author_name, img_user, likes, date, type } = req.body;
+router.patch("/like/:user_id/:article_id", async (req, res) => {
+  try {
+    const { article_id, user_id } = req.params;
 
-  const image = await handleImg(req);
-  console.log(image);
-
-  if (image) {
-    const data = await storypublish(title, description, article, author_name, img_user, likes, date, type, image);
-
-    res.send(data);
+    return await handleLike(user_id, article_id, res);
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message,
+      error: error,
+    });
   }
 });
 
-router.patch("/like/:id", async (req, res) => {
-  const id = req.params.id;
-  const data = await handleLike(id);
-  res.send(data);
+router.patch("/unLike/:user_id/:article_id", async (req, res) => {
+  try {
+    const { user_id, article_id } = req.params;
+
+    const data = await handleUnLike(user_id, article_id, res);
+
+    return await data;
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message,
+      error: error,
+    });
+  }
 });
 
-router.patch("/dislike/:id", async (req, res) => {
-  const id = req.params.id;
+router.patch("/subscribe/:user_id/:subscribe_to", async (req, res) => {
+  try {
+    const { user_id, subscribe_to } = req.params;
 
-  const data = await handleDisLike(id);
+    return await handleSubscribe(user_id, subscribe_to, res);
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message,
 
-  res.send(data);
+      error: error,
+    });
+  }
 });
 
-router.post("/subcribe", async (req, res) => {
-  const { subscriber, subscribed_to, subscribe_at } = req.body;
+router.patch("/unSubscribe/:user_id/:subscribe_to", async (req, res) => {
+  try {
+    const { user_id, subscribe_to } = req.params;
 
-  const data = await handleSubscribe(subscriber, subscribed_to, subscribe_at);
+    return await handleUnSubscribe(user_id, subscribe_to, res);
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message,
 
-  res.send(data);
+      error: error,
+    });
+  }
 });
 
-router.post("/checkIsSubscribe", async (req, res) => {
-  const { subscriber, subscribed_to } = req.body;
-  console.log({ subscriber, subscribed_to });
+router.post("/upload/comment", async (req, res) => {
+  try {
+    const { article_id, user_id, image, comment, user_name } = req.body;
 
-  const data = await handleCheckSubscribe(subscriber, subscribed_to);
-
-  res.send(data);
+    return await useUploadComment(
+      article_id,
+      user_id,
+      image,
+      comment,
+      user_name,
+      res
+    );
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message,
+      error,
+    });
+  }
 });
 
-router.post("/comment/upload", async (req, res) => {
-  const { idArticle, user, comment, email, time } = req.body;
+router.get("/comment/:article_id", async (req, res) => {
+  try {
+    const { article_id } = req.params;
 
-  const data = await commentUpload(idArticle, user, comment, email, time);
-
-  res.send(data);
-});
-
-router.get("/comment/:idArticle", async (req, res) => {
-  const { idArticle } = req.params;
-  console.log(idArticle);
-
-  const data = await getComment(idArticle);
-
-  res.send(data);
+    return await useExistingComment(article_id, res);
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message,
+      error,
+    });
+  }
 });
 
 module.exports = router;
