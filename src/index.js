@@ -12,12 +12,12 @@ const {
 
 dotenv.config();
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 2000;
 
 app.use(cors());
 app.use(express.json());
 
-app.get("/article/:topic", async (req, res) => {
+app.get("/articles/:topic", async (req, res) => {
   const topic = req.params.topic;
   try {
     return await useGetArticleByTopic(topic, res);
@@ -31,10 +31,9 @@ app.get("/article/:topic", async (req, res) => {
 
 app.get("/article/:article_id", async (req, res) => {
   try {
-    const { article_id } = req.params;
-    console.log("🚀 ~ app.get ~ article_id:", article_id);
+    const article_id = req.params.article_id;
 
-    return await useExistingArticle(parseInt(article_id), res);
+    return await useExistingArticle(article_id, res);
   } catch (error) {
     return res.status(500).json({
       errorMessage: error.message,

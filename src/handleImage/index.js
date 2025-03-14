@@ -7,9 +7,9 @@ const handleImg = async (req) => {
   }
 
   const { originalname, buffer, mimetype } = req.file;
-  const fileName = uuidv4() + originalname;
+  const fileName = uuidv4() + ".jpg";
 
-  const { data, error } = await supabase.storage
+  const { error } = await supabase.storage
     .from("image-article-medium")
     .upload(`public/${fileName}`, buffer, {
       cacheControl: "3600",

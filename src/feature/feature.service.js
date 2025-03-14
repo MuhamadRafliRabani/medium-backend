@@ -6,18 +6,26 @@ const {
   useExistingSubscribe,
   useSubscribe,
   useUnSubscribe,
+  useDeleteComment,
 } = require("./feature.repositori");
 
-const getUserByEmail = async (email) => {
-  const { data: user, error } = await supabase
-    .from("users")
+const getLike = async (article_id, res) => {
+  const { data: like, error } = await supabase
+    .from("likes")
     .select("*")
-    .eq("email", email);
+    .eq("article_id", article_id);
 
-  if (error) return { error, status: 500, massage: "something error" };
-  if (user?.length !== 0) return { user, userExist: true };
+  if (error) {
+    return res.status(500).json({
+      message: error.message,
+      error: error,
+    });
+  }
 
-  return { user, status: 200, massage: "get user", userExist: false };
+  return res.status(200).json({
+    message: "succes get like",
+    data: like,
+  });
 };
 
 const handleLike = async (user_id, article_id, res) => {
@@ -75,10 +83,32 @@ const handleUnSubscribe = async (user_id, subscribe_to, res) => {
   });
 };
 
+const handleDeleteComment = async (user_id, comment_id, res) => {
+  const { data: comment } = await supabase
+    .from("comment")
+    .select("*")
+    .eq("user_id", user_id)
+    .eq("id", comment_id);
+
+  console.log(comment);
+
+  if (comment.length != 0) {
+    const DeleteComment = await useDeleteComment(comment_id, res);
+
+    return await DeleteComment;
+  }
+
+  return res.status(200).json({
+    message: "comment with id " + comment_id + " is not define",
+    data: comment,
+  });
+};
+
 module.exports = {
   handleSubscribe,
-  getUserByEmail,
+  handleDeleteComment,
   handleUnLike,
   handleLike,
   handleUnSubscribe,
+  getLike,
 };

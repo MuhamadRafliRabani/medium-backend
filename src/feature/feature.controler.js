@@ -5,6 +5,8 @@ const {
   handleSubscribe,
   handleUnLike,
   handleUnSubscribe,
+  getLike,
+  handleDeleteComment,
 } = require("./feature.service");
 const router = express.Router();
 const upload = require("../multer");
@@ -25,8 +27,15 @@ router.get("/getuser/:email", async (req, res) => {
 
 router.post("/upload/article", upload.single("image"), async (req, res) => {
   try {
-    const { title, description, article, user_name, user_image, category } =
-      req.body;
+    const {
+      title,
+      description,
+      article,
+      user_name,
+      user_image,
+      category,
+      member_only,
+    } = req.body;
 
     const image = await handleImg(req);
 
@@ -44,6 +53,7 @@ router.post("/upload/article", upload.single("image"), async (req, res) => {
       user_image,
       content_image: image,
       category,
+      member_only: member_only === "true" ? true : false,
     };
 
     return await publishArticle(body, res);
@@ -55,7 +65,20 @@ router.post("/upload/article", upload.single("image"), async (req, res) => {
   }
 });
 
-router.patch("/like/:user_id/:article_id", async (req, res) => {
+router.get("/like/:article_id", async (req, res) => {
+  try {
+    const { article_id } = req.params;
+
+    return await getLike(article_id, res);
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message,
+      error: error,
+    });
+  }
+});
+
+router.post("/like/:user_id/:article_id", async (req, res) => {
   try {
     const { article_id, user_id } = req.params;
 
@@ -68,7 +91,7 @@ router.patch("/like/:user_id/:article_id", async (req, res) => {
   }
 });
 
-router.patch("/unLike/:user_id/:article_id", async (req, res) => {
+router.delete("/unLike/:user_id/:article_id", async (req, res) => {
   try {
     const { user_id, article_id } = req.params;
 
@@ -83,7 +106,7 @@ router.patch("/unLike/:user_id/:article_id", async (req, res) => {
   }
 });
 
-router.patch("/subscribe/:user_id/:subscribe_to", async (req, res) => {
+router.post("/subscribe/:user_id/:subscribe_to", async (req, res) => {
   try {
     const { user_id, subscribe_to } = req.params;
 
@@ -97,7 +120,7 @@ router.patch("/subscribe/:user_id/:subscribe_to", async (req, res) => {
   }
 });
 
-router.patch("/unSubscribe/:user_id/:subscribe_to", async (req, res) => {
+router.delete("/unSubscribe/:user_id/:subscribe_to", async (req, res) => {
   try {
     const { user_id, subscribe_to } = req.params;
 
@@ -107,6 +130,19 @@ router.patch("/unSubscribe/:user_id/:subscribe_to", async (req, res) => {
       message: error.message,
 
       error: error,
+    });
+  }
+});
+
+router.get("/comment/:article_id", async (req, res) => {
+  try {
+    const { article_id } = req.params;
+
+    return await useExistingComment(article_id, res);
+  } catch (error) {
+    return res.status(500).json({
+      message: error.message,
+      error,
     });
   }
 });
@@ -131,11 +167,11 @@ router.post("/upload/comment", async (req, res) => {
   }
 });
 
-router.get("/comment/:article_id", async (req, res) => {
+router.delete("/comment/:user_id/:comment_id", async (req, res) => {
   try {
-    const { article_id } = req.params;
+    const { user_id, comment_id } = req.params;
 
-    return await useExistingComment(article_id, res);
+    return await handleDeleteComment(user_id, comment_id, res);
   } catch (error) {
     return res.status(500).json({
       message: error.message,

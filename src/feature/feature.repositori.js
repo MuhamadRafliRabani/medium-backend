@@ -2,8 +2,9 @@ const { supabase } = require("../db");
 
 const useGetArticleByTopic = async (topic, res) => {
   if (topic === "latest") {
-    const { data, error } = await supabase.from("article").select("*");
+    const { data } = await supabase.from("article").select("*");
 
+    console.log("🚀 ~ useGetArticleByTopic ~ data:", data);
     return res.status(200).json({
       message: "Article with topic " + topic + " founded",
       data,
@@ -13,8 +14,8 @@ const useGetArticleByTopic = async (topic, res) => {
   const { data, error } = await supabase
     .from("article")
     .select("*")
-    .eq("category", topic);
-
+    .eq("category", topic)
+    .order("date", { ascending: true });
   if (error)
     res.status(error.code).json({
       message: error.message,
@@ -57,9 +58,10 @@ const publishArticle = async (body, res) => {
     user_image,
     content_image,
     category,
+    member_only,
   } = body;
 
-  const { data, error } = await supabase.from("articles").insert({
+  const { data, error } = await supabase.from("article").insert({
     title,
     description,
     article,
@@ -67,6 +69,7 @@ const publishArticle = async (body, res) => {
     user_image,
     content_image,
     category,
+    member_only,
   });
 
   if (error)
@@ -85,8 +88,8 @@ const useExistingLike = async (user_id, article_id) => {
   const { data: existingLike } = await supabase
     .from("likes")
     .select("*")
-    .eq("user_id", parseInt(user_id))
-    .eq("article_id", parseInt(article_id))
+    .eq("user_id", user_id)
+    .eq("article_id", article_id)
     .single();
 
   if (!existingLike) return null;
@@ -187,6 +190,25 @@ const useUnSubscribe = async (user_id, subscribe_to, res) => {
   });
 };
 
+const useExistingComment = async (article_id, res) => {
+  const { data, error } = await supabase
+    .from("comment")
+    .select("*")
+    .eq("article_id", article_id);
+
+  if (error) {
+    return res.status(500).json({
+      message: error.message,
+      error,
+    });
+  }
+
+  return res.status(200).json({
+    message: "succes get comment",
+    data,
+  });
+};
+
 const useUploadComment = async (
   article_id,
   user_id,
@@ -216,11 +238,11 @@ const useUploadComment = async (
   });
 };
 
-const useExistingComment = async (article_id, res) => {
+const useDeleteComment = async (comment_id, res) => {
   const { data, error } = await supabase
     .from("comment")
-    .select("*")
-    .eq("article_id", article_id);
+    .delete()
+    .eq("id", comment_id);
 
   if (error) {
     return res.status(500).json({
@@ -230,7 +252,7 @@ const useExistingComment = async (article_id, res) => {
   }
 
   return res.status(200).json({
-    message: "succes get comment",
+    message: "comment deleted",
     data,
   });
 };
@@ -312,10 +334,7 @@ const useOauth = async (provider, res) => {
       });
     }
 
-    return res.status(200).json({
-      message: "user exist",
-      user,
-    });
+    return res.redirect(user.url);
   }
 
   // if (provider == "google") {
@@ -353,14 +372,15 @@ module.exports = {
   useGetArticleByTopic,
   useExistingArticle,
   publishArticle,
+  useExistingLike,
   useLike,
   useUnLike,
+  useExistingSubscribe,
   useSubscribe,
   useUnSubscribe,
-  useUploadComment,
-  useExistingLike,
-  useExistingSubscribe,
   useExistingComment,
+  useUploadComment,
+  useDeleteComment,
   useSignUp,
   useSignIn,
   useOauth,
